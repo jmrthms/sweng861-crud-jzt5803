@@ -9,12 +9,22 @@ const sequelize = new Sequelize({
 const User = sequelize.define('User', {
   username: {
     type: DataTypes.STRING,
-    allowNull: false,
+    allowNull: true, // Allow null for OAuth users if we want, or map email to username
+    unique: true,
+  },
+  email: {
+    type: DataTypes.STRING,
+    allowNull: true,
     unique: true,
   },
   password: {
     type: DataTypes.STRING,
-    allowNull: false,
+    allowNull: true, // Nullable for OAuth users
+  },
+  googleId: {
+    type: DataTypes.STRING,
+    unique: true,
+    allowNull: true,
   },
 });
 

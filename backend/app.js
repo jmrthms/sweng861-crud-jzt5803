@@ -5,8 +5,23 @@ const jwt = require('jsonwebtoken');
 const { User, initDb } = require('./database');
 const authenticateToken = require('./authMiddleware');
 
+const session = require('express-session');
+const passport = require('passport');
+require('./passportConfig'); // Import passport config
+
 const app = express();
 app.use(express.json());
+
+// Session setup (required for passport state)
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET || 'dev_secret_key',
+    resave: false,
+    saveUninitialized: false,
+  })
+);
+
+app.use(passport.initialize());
 
 const port = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'default_dev_secret';
@@ -19,11 +34,44 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
 });
 
+const path = require('path');
+
 app.get('/', (req, res) => {
-  res.send('SWENG 861 CRUD Project Backend - Week 2 Auth Enabled');
+  res.sendFile(path.join(__dirname, '../index.html'));
 });
 
 // Auth Routes
+
+// Google Auth Flow
+app.get(
+  '/auth/google',
+  passport.authenticate('google', { scope: ['profile', 'email'] })
+);
+
+app.get(
+  '/auth/google/callback',
+  passport.authenticate('google', {
+    session: false,
+    failureRedirect: '/login',
+  }),
+  (req, res) => {
+    // Successful authentication, issue JWT
+    const user = req.user;
+    const token = jwt.sign(
+      { username: user.username, id: user.id },
+      JWT_SECRET,
+      {
+        expiresIn: '1h',
+      }
+    );
+
+    // Redirect to frontend with token
+    // In a real SPA, you might redirect to a client route.
+    // For this simple example, we'll redirect to root with a query param.
+    res.redirect(`/?token=${token}`);
+  }
+);
+
 app.post('/register', async (req, res) => {
   try {
     const { username, password } = req.body;
