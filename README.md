@@ -246,6 +246,106 @@ sweng861-crud-jzt5803/
 
 ---
 
+## MCP Integration (Bonus)
+
+### What is MCP?
+
+The **Model Context Protocol (MCP)** is an open standard for connecting AI systems (Claude, ChatGPT, Copilot, etc.) to external tools, APIs, and data sources. It acts as "USB-C for AI applications" - allowing any compliant AI client to use standardized tools.
+
+### Integration Approach: Postman MCP Server
+
+This project uses **Option C: Postman MCP Server** to expose the Campus Analytics API to AI systems. This approach leverages our existing Postman collection without requiring database-level access.
+
+**Why Postman MCP Server?**
+
+- Uses existing `postman/CampusAnalytics.postman_collection.json`
+- Exposes REST API (not direct DB access)
+- Inherits all existing security controls (JWT auth, BOLA protection)
+- No additional database configuration required
+
+### Setup Instructions
+
+1. **Install Postman MCP Server**
+
+   ```bash
+   # Via npm
+   npm install -g @anthropic/postman-mcp-server
+
+   # Or clone from GitHub
+   git clone https://github.com/postmanlabs/postman-mcp-server
+   ```
+
+2. **Configure MCP Server**
+
+   Create `mcp-config.json`:
+
+   ```json
+   {
+     "name": "campus-analytics-api",
+     "collection": "./postman/CampusAnalytics.postman_collection.json",
+     "baseUrl": "http://localhost:3000",
+     "auth": {
+       "type": "bearer",
+       "token": "{{token}}"
+     }
+   }
+   ```
+
+3. **Run MCP Server**
+
+   ```bash
+   postman-mcp-server --config mcp-config.json
+   ```
+
+### Exposed Resources & Tools
+
+| Resource/Tool       | Type     | Description                       | Access Level |
+| ------------------- | -------- | --------------------------------- | ------------ |
+| `GET /api/metrics`  | Tool     | List user's campus metrics        | Read-only    |
+| `GET /api/weather`  | Tool     | Fetch weather for coordinates     | Read-only    |
+| `GET /api/events`   | Resource | View domain events                | Read-only    |
+| `POST /api/metrics` | Tool     | Create new metric (authenticated) | Write        |
+| `PUT /api/metrics`  | Tool     | Update owned metric               | Write        |
+
+### Security Controls
+
+The MCP integration inherits all existing security measures:
+
+| Control              | Implementation                                   |
+| -------------------- | ------------------------------------------------ |
+| **Authentication**   | JWT tokens required for all `/api/*` routes      |
+| **Authorization**    | Owner-based access (userId filtering)            |
+| **BOLA Prevention**  | Users can only access their own data             |
+| **Rate Limiting**    | 100 req/15min for API, 30 req/15min for external |
+| **Input Validation** | express-validator on all endpoints               |
+
+### Example AI Queries
+
+An AI agent connected via MCP could perform queries like:
+
+```
+"List my campus enrollment metrics"
+→ GET /api/metrics?category=enrollment
+
+"What's the weather at Penn State University Park?"
+→ GET /api/weather/preview?latitude=40.7983&longitude=-77.8599
+
+"Create a new facilities metric for building occupancy"
+→ POST /api/metrics { name: "Building A Occupancy", category: "facilities", value: 85 }
+
+"Show me recent domain events"
+→ GET /api/events?limit=10
+```
+
+### Principle of Least Privilege
+
+- AI only sees data belonging to the authenticated user
+- No direct database access exposed
+- Sensitive fields (password hashes) never returned in API responses
+- Read-only operations preferred for AI queries
+
+---
+
 ## Previous Assignments
 
 ### Week 2: Authentication & Protected APIs
